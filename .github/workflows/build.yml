@@ -1,0 +1,118 @@
+name: Build with IDA SDK
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-native-with-sdk:
+    strategy:
+      matrix:
+        include:
+          - platform: linux
+            cmake_preset: Release
+            artifact_name: libidasharp.so
+            artifact_path: build/lib/libidasharp.so
+          - platform: macos
+            cmake_preset: Release
+            artifact_name: libidasharp.dylib
+            artifact_path: build/lib/libidasharp.dylib
+          - platform: windows
+            cmake_preset: Release
+            artifact_name: idasharp.dll
+            artifact_path: build/bin/Release/idasharp.dll
+
+    runs-on: ${{ matrix.runner }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Verify IDA SDK
+        run: |
+          if [ -z "$IDASDKDIR" ]; then
+            echo "Error: IDASDKDIR not set"
+            exit 1
+          fi
+          if [ ! -d "$IDASDKDIR" ]; then
+            echo "Error: IDA SDK directory not found: $IDASDKDIR"
+            exit 1
+          fi
+          echo "IDA SDK found at: $IDASDKDIR"
+
+      - name: Configure CMake (with IDA SDK)
+        run: |
+          mkdir -p build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=${{ matrix.cmake_preset }} ..
+
+      - name: Build native library
+        run: |
+          cd build
+          cmake --build . --config ${{ matrix.cmake_preset }}
+
+      - name: Upload native artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-sdk-${{ matrix.platform }}
+          path: ${{ matrix.artifact_path }}
+          retention-days: 7
+
+  build-nuget-with-sdk:
+    needs: build-native-with-sdk
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Download native artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Organize native libraries
+        run: |
+          mkdir -p build/bin
+          
+          # Linux
+          if [ -f artifacts/native-sdk-linux/libidasharp.so ]; then
+            cp artifacts/native-sdk-linux/libidasharp.so build/bin/libidasharp.1.0.0.so
+          fi
+          
+          # macOS
+          if [ -f artifacts/native-sdk-macos/libidasharp.*.dylib ]; then
+            cp artifacts/native-sdk-macos/libidasharp.*.dylib build/bin/libidasharp.1.0.0.dylib
+          fi
+          
+          # Windows
+          if [ -f artifacts/native-sdk-windows/idasharp.dll ]; then
+            cp artifacts/native-sdk-windows/idasharp.dll build/bin/idasharp.1.0.0.dll
+          fi
+          
+          ls -la build/bin/
+
+      - name: Build .NET project
+        run: dotnet build IdaSharp/IdaSharp.csproj --configuration Release
+
+      - name: Create NuGet package
+        run: dotnet pack IdaSharp/IdaSharp.csproj --configuration Release --no-build --output ./packages
+
+      - name: Upload NuGet package
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-package-sdk
+          path: packages/*.nupkg
+          retention-days: 7

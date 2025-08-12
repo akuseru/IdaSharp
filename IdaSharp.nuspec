@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata>
+    <id>IdaSharp</id>
+    <version>1.0.0</version>
+    <title>IdaSharp - IDA Pro SDK for .NET</title>
+    <authors>FFXIVPlayground</authors>
+    <description>A .NET wrapper for IDA Pro SDK functionality, providing cross-platform access to IDA's reverse engineering capabilities.</description>
+    <projectUrl>https://github.com/your-org/idasharp</projectUrl>
+    <license type="expression">MIT</license>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <tags>ida pro sdk reverse engineering disassembly</tags>
+    <summary>Cross-platform .NET wrapper for IDA Pro SDK with native library support</summary>
+    <releaseNotes>Initial release with create_enum_type functionality</releaseNotes>
+    <copyright>Copyright 2025</copyright>
+    <dependencies>
+      <group targetFramework="net9.0">
+        <dependency id="System.Runtime.InteropServices" version="4.3.0" />
+      </group>
+    </dependencies>
+  </metadata>
+  <files>
+    <!-- Managed assembly -->
+    <file src="build/bin/IdaPro.dll" target="lib/net9.0/IdaPro.dll" />
+    <file src="build/bin/IdaPro.pdb" target="lib/net9.0/IdaPro.pdb" />
+    
+    <!-- Native libraries for different platforms -->
+    <!-- Windows x64 -->
+    <file src="build/bin/idasharp.dll" target="runtimes/win-x64/native/idasharp.dll" condition="Exists('build/bin/idasharp.dll')" />
+    
+    <!-- macOS x64 -->
+    <file src="build/bin/libidasharp.dylib" target="runtimes/osx-x64/native/libidasharp.dylib" condition="Exists('build/bin/libidasharp.dylib')" />
+    
+    <!-- macOS ARM64 -->
+    <file src="build/bin/libidasharp.dylib" target="runtimes/osx-arm64/native/libidasharp.dylib" condition="Exists('build/bin/libidasharp.dylib')" />
+    
+    <!-- Linux x64 -->
+    <file src="build/bin/libidasharp.so" target="runtimes/linux-x64/native/libidasharp.so" condition="Exists('build/bin/libidasharp.so')" />
+    
+    <!-- Build props for automatic native library copying -->
+    <file src="IdaSharp.props" target="build/IdaSharp.props" />
+    <file src="IdaSharp.targets" target="build/IdaSharp.targets" />
+  </files>
+</package>

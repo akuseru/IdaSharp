@@ -1,0 +1,191 @@
+name: Release Build
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (e.g., 1.0.0)'
+        required: true
+        default: '1.0.0'
+
+jobs:
+  build-native:
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, macos-latest, windows-2022]
+        include:
+          - os: ubuntu-20.04
+            platform: linux
+            cmake_preset: Release
+            artifact_name: libidasharp.so
+            artifact_path: build/lib/libidasharp.so
+          - os: macos-latest
+            platform: macos
+            cmake_preset: Release
+            artifact_name: libidasharp.dylib
+            artifact_path: build/lib/libidasharp.dylib
+          - os: windows-2022
+            platform: windows
+            cmake_preset: Release
+            artifact_name: idasharp.dll
+            artifact_path: build/bin/Release/idasharp.dll
+
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '9.0.x'
+        
+    - name: Install CMake
+      uses: jwlawson/actions-setup-cmake@v2
+      with:
+        cmake-version: '3.25.x'
+        
+    - name: Setup MSVC (Windows)
+      if: matrix.os == 'windows-2022'
+      uses: ilammy/msvc-dev-cmd@v1
+      
+    - name: Verify IDA SDK
+      run: |
+        if [ -z "$IDASDKDIR" ]; then
+          echo "Error: IDASDKDIR not set"
+          exit 1
+        fi
+        if [ ! -d "$IDASDKDIR" ]; then
+          echo "Error: IDA SDK directory not found: $IDASDKDIR"
+          exit 1
+        fi
+        echo "IDA SDK found at: $IDASDKDIR"
+
+    - name: Configure CMake (with IDA SDK)
+      run: |
+        mkdir -p build
+        cd build
+        cmake -DCMAKE_BUILD_TYPE=${{ matrix.cmake_preset }} -DREQUIRE_IDA_SDK=ON ..
+        
+    - name: Build native library
+      run: |
+        cd build
+        cmake --build . --config ${{ matrix.cmake_preset }}
+        
+    - name: Upload native artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: native-${{ matrix.platform }}
+        path: ${{ matrix.artifact_path }}
+        retention-days: 7
+
+  build-nuget:
+    needs: build-native
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '9.0.x'
+        
+    - name: Download native artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts/
+        
+    - name: Organize native libraries
+      run: |
+        mkdir -p build/bin
+        
+        # Linux
+        if [ -f artifacts/native-linux/libidasharp.so ]; then
+          cp artifacts/native-linux/libidasharp.so build/bin/libidasharp.1.0.0.so
+        fi
+        
+        # macOS
+        if [ -f artifacts/native-macos/libidasharp.*.dylib ]; then
+          cp artifacts/native-macos/libidasharp.*.dylib build/bin/libidasharp.1.0.0.dylib
+        fi
+        
+        # Windows
+        if [ -f artifacts/native-windows/idasharp.dll ]; then
+          cp artifacts/native-windows/idasharp.dll build/bin/idasharp.1.0.0.dll
+        fi
+        
+        ls -la build/bin/
+        
+    - name: Update project version
+      run: |
+        VERSION="${{ github.event.inputs.version || github.ref_name }}"
+        VERSION="${VERSION#v}"  # Remove 'v' prefix if present
+        echo "Setting version to: $VERSION"
+        
+        # Update csproj version
+        sed -i "s/<PackageVersion>.*<\/PackageVersion>/<PackageVersion>$VERSION<\/PackageVersion>/" IdaSharp/IdaSharp.csproj
+        
+    - name: Build .NET project
+      run: dotnet build IdaSharp/IdaSharp.csproj --configuration Release
+      
+    - name: Create NuGet package
+      run: dotnet pack IdaSharp/IdaSharp.csproj --configuration Release --no-build --output ./packages
+      
+    - name: Upload NuGet package
+      uses: actions/upload-artifact@v4
+      with:
+        name: nuget-package
+        path: packages/*.nupkg
+        retention-days: 7
+
+  create-release:
+    needs: [build-native, build-nuget]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: release-artifacts/
+        
+    - name: Create release assets
+      run: |
+        mkdir release-files
+        
+        # Copy native libraries
+        find release-artifacts/native-* -type f \( -name "*.so" -o -name "*.dylib" -o -name "*.dll" \) -exec cp {} release-files/ \;
+        
+        # Copy NuGet package
+        find release-artifacts/nuget-package -name "*.nupkg" -exec cp {} release-files/ \;
+        
+        ls -la release-files/
+        
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: release-files/*
+        generate_release_notes: true
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Publish to NuGet
+      if: env.NUGET_API_KEY != ''
+      run: |
+        dotnet nuget push release-files/*.nupkg \
+          --api-key ${{ secrets.NUGET_API_KEY }} \
+          --source https://api.nuget.org/v3/index.json \
+          --skip-duplicate
+      env:
+        NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}

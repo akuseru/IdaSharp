@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Condition="'$(IdaSharpRuntimeIdentifier)' != '' and '$(IdaSharpNativeLibraryName)' != ''">
+    <Content Include="$(MSBuildThisFileDirectory)../runtimes/$(IdaSharpRuntimeIdentifier)/native/$(IdaSharpNativeLibraryName)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Visible>false</Visible>
+    </Content>
+  </ItemGroup>
+  
+  <Target Name="IdaSharpCopyNativeLibrary" BeforeTargets="Build">
+    <Message Text="IdaSharp: Using runtime $(IdaSharpRuntimeIdentifier) with library $(IdaSharpNativeLibraryName)" Importance="low" />
+  </Target>
+</Project>

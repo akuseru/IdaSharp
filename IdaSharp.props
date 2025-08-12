@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <IdaSharpNativeLibraryName Condition="$([MSBuild]::IsOSPlatform('Windows'))">idasharp.dll</IdaSharpNativeLibraryName>
+    <IdaSharpNativeLibraryName Condition="$([MSBuild]::IsOSPlatform('OSX'))">libidasharp.dylib</IdaSharpNativeLibraryName>
+    <IdaSharpNativeLibraryName Condition="$([MSBuild]::IsOSPlatform('Linux'))">libidasharp.so</IdaSharpNativeLibraryName>
+    
+    <IdaSharpRuntimeIdentifier Condition="$([MSBuild]::IsOSPlatform('Windows'))">win-x64</IdaSharpRuntimeIdentifier>
+    <IdaSharpRuntimeIdentifier Condition="$([MSBuild]::IsOSPlatform('OSX')) and '$(RuntimeIdentifier)' == 'osx-arm64'">osx-arm64</IdaSharpRuntimeIdentifier>
+    <IdaSharpRuntimeIdentifier Condition="$([MSBuild]::IsOSPlatform('OSX')) and '$(RuntimeIdentifier)' != 'osx-arm64'">osx-x64</IdaSharpRuntimeIdentifier>
+    <IdaSharpRuntimeIdentifier Condition="$([MSBuild]::IsOSPlatform('Linux'))">linux-x64</IdaSharpRuntimeIdentifier>
+  </PropertyGroup>
+</Project>

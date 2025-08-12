@@ -1,0 +1,49 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+
+        <!-- NuGet Package Properties -->
+        <PackageId>IdaSharp</PackageId>
+        <PackageVersion>1.0.0</PackageVersion>
+        <Title>IdaSharp - IDA Pro SDK for .NET</Title>
+        <Authors>FFXIVPlayground</Authors>
+        <Description>A .NET wrapper for IDA Pro SDK functionality, providing cross-platform access to IDA's reverse engineering capabilities.</Description>
+        <PackageProjectUrl>https://github.com/akuseru/idasharp</PackageProjectUrl>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+        <PackageTags>idapro ida reverse engineering disassembly</PackageTags>
+        <Copyright>Copyright 2025</Copyright>
+        <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+        <IncludeSymbols>true</IncludeSymbols>
+        <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="../README.md" Pack="true" PackagePath="\" />
+
+        <!-- Include native libraries for different platforms -->
+        <Content Include="../build/bin/libidasharp.1.0.0.dylib" Condition="Exists('../build/bin/libidasharp.1.0.0.dylib')" Pack="true" PackagePath="runtimes/osx-x64/native/libidasharp.dylib" />
+        <Content Include="../build/bin/libidasharp.1.0.0.dylib" Condition="Exists('../build/bin/libidasharp.1.0.0.dylib')" Pack="true" PackagePath="runtimes/osx-arm64/native/libidasharp.dylib" />
+        <Content Include="../build/bin/libidasharp.1.0.0.so" Condition="Exists('../build/bin/libidasharp.1.0.0.so')" Pack="true" PackagePath="runtimes/linux-x64/native/libidasharp.so" />
+        <Content Include="../build/bin/idasharp.1.0.0.dll" Condition="Exists('../build/bin/idasharp.1.0.0.dll')" Pack="true" PackagePath="runtimes/win-x64/native/idasharp.dll" />
+
+        <!-- Include build props and targets -->
+        <None Include="../IdaSharp.props" Pack="true" PackagePath="build/IdaSharp.props" />
+        <None Include="../IdaSharp.targets" Pack="true" PackagePath="build/IdaSharp.targets" />
+    </ItemGroup>
+
+    <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+        <DefineConstants>WINDOWS</DefineConstants>
+    </PropertyGroup>
+    <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
+        <DefineConstants>LINUX</DefineConstants>
+    </PropertyGroup>
+    <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+        <DefineConstants>MACOS</DefineConstants>
+    </PropertyGroup>
+    
+</Project>
